@@ -15,14 +15,14 @@ const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASSWORD}@clu
 console.log(uri)
 const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true, serverApi: ServerApiVersion.v1 });
 function verifyJWT(req, res, next){
-    const authHeader = req.headers.authorization;
-    if(!authHeader){
+    const service = req.headers.authorization;
+    if(!service){
         return res.status(401).send({message: 'unauthorized Access'})
     }
-    const token = authHeader.split(' ')[1];
+    const token = service.split(' ')[1];
     jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, function(err, decoded){
         if(err){
-            res.status(401).send({message: 'Unauthorized Access'})
+          return res.status(403).send({message: 'Unauthorized Access'})
         }
         req.decoded = decoded;
         next()
@@ -55,39 +55,43 @@ async function run(){
             const result = await reviewCollection.insertOne(review)
             res.send(result)
         })
-        app.get('/review', async(req, res)=>{
+        app.get('/review', verifyJWT, async(req, res)=>{
+            const doc = req.decoded
+            if(doc.email !== req.query.email){
+                res.status(403).send({message: 'unauthorized person'})
+            }
             let query = {}
             if(req.query.email){
                 query = {
                     email: req.query.email
                 }
             }
+            console.log(req.query.email)
             const cursor = reviewCollection.find();
             const reviews = await cursor.toArray();
             res.send(reviews)
         })
         app.delete('/review/:id',  async(req, res)=>{
-            const id = req.params.id
+            const _id = req.params.id
             const query = {_id: ObjectId(_id)}
             const result = await reviewCollection.deleteOne(query)
             res.send(result)
         })
         app.patch('/review/:id', async(req, res)=>{
-            const id = req.params.id
-            const status = req.body.status
-            const query = {_id: ObjectId(id)}
+            const _id = req.params.id
+            const status = req.body.message
+            const query = {_id: ObjectId(_id)}
             const updateReview = {
                 $set: {
-                    status: status
+                    message: status
                 }
             }
-            const result = await orderCollection.updateOne(query, updateReview)
+            const result = await reviewCollection.updateOne(query, updateReview)
             res.send(result)
         })
         app.post('/jwt', (req, res)=>{
             const user = req.body;
-            console.log(user)
-            const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {expiresIn: '10d'})
+            const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET)
             res.send({token})
         })
     }
