@@ -1,7 +1,6 @@
 const express = require('express');
 const cors = require('cors');
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
-const { useAsyncError } = require('react-router-dom');
 const app = express();
 const jwt = require('jsonwebtoken');
 const port = process.env.PORT || 5000;
